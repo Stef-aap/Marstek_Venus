@@ -9,7 +9,7 @@ Simpel monitor for the Marstek Venus with the followig features:
 - doesn't block the Marstek for other devices
 - tested on ESP32 and ESP32C3
 
-You should make the following changes:
+### You should make the following changes:
 - adapt Wifi credentials
 - the Marstek IP address.
 - If you need MQTT you should also set the correct IP-address of the MQTT-broker.
