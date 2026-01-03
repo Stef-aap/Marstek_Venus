@@ -11,7 +11,7 @@ Simpel monitor for the Marstek Venus with the followig features:
 
 ### You should make the following changes:
 - adapt Wifi credentials
-- the Marstek IP address.
+- set the correct Marstek IP address.
 - If you need MQTT you should also set the correct IP-address of the MQTT-broker.
 - If you need Home Assistant support you should unquote //#define HomeAssistant
 - If you need more debug information, unquote //#define Debug
