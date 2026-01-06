@@ -1,7 +1,8 @@
 # ESP32  Marstek Venus E v3 Monitor
 
 Simpel monitor for the Marstek Venus with the followig features:
-- communicates with Marstek over local Wifi through UDP
+- communicates with Marstek over local Wifi through UDP: Marstek_UDP_vxx.ino
+- communicates with Marstek over BLE: Marstek_BLE_vxx.ino
 - reads actual (and some aggregating) data from the Marstek
 - presents the values on a webpage
 - sends the values to an MQTT broker
