@@ -16,7 +16,4 @@ Simpel monitor for the Marstek Venus with the followig features:
 - If you need Home Assistant support you should unquote //#define HomeAssistant
 - If you need more debug information, unquote //#define Debug
 
-<img width="964" height="784" alt="screen_20260106_115032" src="https://github.com/user-attachments/assets/e2c0a146-f02d-4aca-98e4-ea5ea1f83ae0" />
-
-
-<img width="1018" height="692" alt="screen_20260103_230149" src="https://github.com/user-attachments/assets/689e4e11-153a-434f-822f-635b923cd195" />
+<img width="600" alt="screen_20260106_115032" src="https://github.com/user-attachments/assets/e2c0a146-f02d-4aca-98e4-ea5ea1f83ae0" />
