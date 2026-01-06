@@ -7,9 +7,11 @@
 //#include <PubSubClient.h>
 //PubSubClient mqttClient ( espClient ) ;
 
+int     MQTT_Fail_Count     = 0 ;
+#define MQTT_Fail_Count_Max   3  
 
 // ****************************************************************************
-void Publish_2_MQTT () {
+void Publish_2_MQTT_Actual () {
 // ****************************************************************************
     if ( ! mqttClient.connected() ) return ;
     JsonDocument Doc ;
@@ -25,7 +27,7 @@ void Publish_2_MQTT () {
     Doc [ "OnGrid_Power"     ] = AccuData.OnGrid_Power     ;
     Doc [ "OffGrid_Power"    ] = AccuData.OffGrid_Power    ;
     Doc [ "Bat_Temperature"  ] = AccuData.Bat_Temperature  ;
-    Doc [ "Bat_Capacity"     ] = AccuData.Bat_Capacity     ;
+    Doc [ "Bat_Lading"       ] = AccuData.Bat_Lading     ;
     Doc [ "Energy_In"        ] = AccuData.Energy_In        ;
     Doc [ "Energy_Out"       ] = AccuData.Energy_Out       ;
     Doc [ "Total_Energy_In"  ] = AccuData.Total_Energy_In  ;
@@ -33,10 +35,15 @@ void Publish_2_MQTT () {
     Doc [ "P1_Meter"         ] = AccuData.P1_Meter         ;
 
     serializeJson ( Doc, Payload ) ;
-    //snprintf ( Topic, sizeof(Topic), "%s/All_Data", MQTT_Topic_Prefix ) ;
-    Topic = String ( MQTT_Topic_Prefix ) + "/" + Mac_Address.substring(6) ;
+
+    String Temp = MAC_Address ;
+    Temp.replace ( ":", "" ) ;
+    Temp.toUpperCase();
+    Topic = String ( MQTT_Topic_Prefix ) + "/" + Temp.substring(6) + "_Actual" ;
+    Serial.print   ( "Send MQTT: " ) ;
     Serial.println ( Topic   ) ;
-    Serial.println ( Payload ) ;
+    //Serial.println ( Payload ) ;
+
     mqttClient.publish ( Topic.c_str(), Payload.c_str() ) ; //, true ) ; 3e parameter ??
 }
 
@@ -108,6 +115,7 @@ void Publish_2_MQTT () {
 #ifdef HomeAssistant
   void publishHomeAssistantDiscovery () {
 // ****************************************************************************
+    if ( ! mqttClient.connected() ) return ;
     JsonDocument doc ;
     char topic   [ 150 ] ;
     char payload [ 800 ] ;
@@ -173,29 +181,61 @@ void Publish_2_MQTT () {
 #endif
 
 // ****************************************************************************
-void connectMQTT () {
+void MQTT_Connect () {
 // ****************************************************************************
-  //Serial.print ( "Verbinden met MQTT broker" ) ;
-  //String clientId = "MarstekESP32-" + String ( random(0xffff), HEX ) ;
-  String clientId = "ESP32-" + WiFi.macAddress();
-  bool connected;
+  String Client_ID = "ESP32-" + WiFi.macAddress();
+  bool Connected;
   
-  if ( strlen(mqtt_user) > 0 ) {
-    connected = mqttClient.connect ( clientId.c_str(), mqtt_user, mqtt_password ) ;
-  } else {
-    connected = mqttClient.connect ( clientId.c_str() ) ;
+  int Attempts = 0;
+  Serial.print ( "MQTT" ) ;
+  while ( ! mqttClient.connected() && ( Attempts < 3 ) ) {
+    Serial.print ( "." ) ;
+    Connected = mqttClient.connect ( Client_ID.c_str(), mqtt_user, mqtt_password ) ;
+    if ( Connected ) {
+      Serial.println ( "OK" );
+      MQTT_Fail_Count = 0; // Reset teller bij succes
+    } 
+    else {
+      Attempts++;
+      if (Attempts < 3) delay ( 2000 ) ;
+    }
   }
   
-  if ( connected ) {
+  if ( Connected ) {
     Serial.printf ( "✓ MQTT verbonden!  %s\n", mqtt_server ) ;
 
     #ifdef HomeAssistant
       publishHomeAssistantDiscovery () ;
     #endif
-  } else {
-    Serial.printf ( "✗ MQTT mislukt (code: %d)\n", mqttClient.state() ) ;
+  } 
+  else {
+    MQTT_Fail_Count++ ;
+    Serial.printf ( "✗ MQTT naar %s mislukt (code: %d)   (Count: %i)\n", mqtt_server, mqttClient.state(), MQTT_Fail_Count ) ;
+    
+    if ( MQTT_Fail_Count >= MQTT_Fail_Count_Max ) {
+      Serial.println ( "MQTT failures >= maxRetries, RESTARTING ESP..." ) ;
+      delay(1000);
+      ESP.restart();
+    }
   }
 }
 
+// ****************************************************************************
+void MQTT_Setup () {
+// ****************************************************************************
+  if ( mqtt_server == "" ) return ;
+  mqttClient.setServer ( mqtt_server, mqtt_port ) ;
+  mqttClient.setBufferSize ( 1000 ) ;
+} 
+
+// ****************************************************************************
+void MQTT_Loop () {
+// ****************************************************************************
+  if ( mqtt_server == "" ) return ;
+  if ( ! mqttClient.connected () ) {
+    MQTT_Connect () ;
+  }
+  mqttClient.loop () ;
+}
 
 #endif

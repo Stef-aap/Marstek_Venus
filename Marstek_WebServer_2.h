@@ -2,7 +2,7 @@
 #define Marstek_WebServer_2_h
 
 #include <ArduinoJson.h>     // v7.x
-
+bool Do_Long_Line = false ;
 
 //****************************************************************************
 void handleFavicon() {
@@ -234,10 +234,10 @@ void handleRoot() {
         </div>
 
         <div class="metric">
-          <span class="metric-label">Capaciteit</span>
+          <span class="metric-label">Lading</span>
           <span class="metric-value power-indicator">
-            <span class="metric-value" id="capacity">-- Wh</span>
-            <span class="power-arrow" id="capacityArrow"></span>
+            <span class="metric-value" id="lading">-- Wh</span>
+            <span class="power-arrow" id="ladingArrow"></span>
           </span>
         </div>
 
@@ -324,7 +324,7 @@ void handleRoot() {
     <div class="card">
       <button class="refresh-btn" onclick="fetchData()">🔄 Ververs Data</button>
     </div>
-    
+    <div class="last-update" id="Long_Line"></div>
     <div class="last-update" id="lastUpdate">Laatste update: --</div>
   </div>
   
@@ -340,16 +340,16 @@ void handleRoot() {
           document.getElementById('socCircle').style.setProperty('--soc-angle', socAngle + 'deg');
           
           // Update batterij data
-          document.getElementById('capacity').textContent = data.Accu.Capacity.toFixed(1) + ' kWh';
+          document.getElementById('lading').textContent = data.Accu.Lading.toFixed(1) + ' kWh';
           document.getElementById('temperature').textContent = data.Accu.Temperature.toFixed(1) + ' °C';
           document.getElementById('mode').textContent = data.Accu.Mode ;
           
           if (data.Accu.Status === 'Laden' ) {
-            document.getElementById('capacityArrow').textContent = '⬆️';
+            document.getElementById('ladingArrow').textContent = '⬆️';
           } else if (data.Accu.Status === 'Ontladen' ) {
-            document.getElementById('capacityArrow').textContent = '⬇️';
+            document.getElementById('ladingArrow').textContent = '⬇️';
           } else {
-            document.getElementById('capacityArrow').textContent = '';
+            document.getElementById('ladingArrow').textContent = '';
           }
 
 
@@ -364,13 +364,13 @@ void handleRoot() {
 
           // Update energie data met pijlen
           document.getElementById('Power_A').textContent = data.Accu.Power_A + ' W';
-          document.getElementById('gridArrow_A').textContent = data.Accu.Power_A > 0 ? '⬅️' : '➡️';
+          document.getElementById('gridArrow_A').textContent = data.Accu.Power_A < 0 ? '➡️' : '⬅️';
           document.getElementById('Power_B').textContent = data.Accu.Power_B + ' W';
-          document.getElementById('gridArrow_B').textContent = data.Accu.Power_B > 0 ? '⬅️' : '➡️';
+          document.getElementById('gridArrow_B').textContent = data.Accu.Power_B < 0 ? '➡️' : '⬅️';
           document.getElementById('Power_C').textContent = data.Accu.Power_C + ' W';
-          document.getElementById('gridArrow_C').textContent = data.Accu.Power_C > 0 ? '⬅️' : '➡️';
+          document.getElementById('gridArrow_C').textContent = data.Accu.Power_C < 0 ? '➡️' : '⬅️';
           document.getElementById('Power_Total').textContent = data.Accu.Power_Total + ' W';
-          document.getElementById('gridArrow_Total').textContent = data.Accu.Power_Total > 0 ? '⬅️' : '➡️';
+          document.getElementById('gridArrow_Total').textContent = data.Accu.Power_Total < 0 ? '➡️' : '⬅️';
           
           document.getElementById('Power_OnGrid').textContent = data.Accu.Power_OnGrid + ' W';
           <!-- document.getElementById('gridArrow_OnGrid').textContent = data.Accu.Power_OnGrid > 0 ? '⬅️' : '➡️'; -->
@@ -398,6 +398,11 @@ void handleRoot() {
           }
           document.getElementById('alerts').innerHTML = alertsHTML;
           
+          // Update Long Line
+          if ( data.Other.LongLine != "" ) {
+            document.getElementById('Long_Line').textContent = data.Other.LongLine ;
+          } 
+
           // Update timestamp
           const now = new Date();
           document.getElementById('lastUpdate').textContent = 'Laatste update: ' + now.toLocaleTimeString('nl-NL');
@@ -420,19 +425,9 @@ void handleRoot() {
   
   WEBServer.send(200, "text/html", html);
 }
-/*
-          <!--
-          if (data.Accu.Power_OnGrid > 2 ) {
-            document.getElementById('capacityArrow').textContent = '⬆️';
-          } else if (data.Accu.Power_OnGrid < -2 ) {
-            document.getElementById('capacityArrow').textContent = '⬇️';
-          } else {
-            document.getElementById('capacityArrow').textContent = '';
-          } -->
 
-*/
 //****************************************************************************
-void handleAPIStatus() {
+void handleAPIStatus ( ) {
 // PAS OP: Velden moet allemaal aanwezig zijn, anders gaat Javascript in de fout en wordt er nooit geupdate
 //****************************************************************************
   #ifdef Debug
@@ -442,9 +437,9 @@ void handleAPIStatus() {
 
   doc [ "Accu" ] [ "SOC"         ] = AccuData.Bat_SOC ;
   doc [ "Accu" ] [ "Temperature" ] = AccuData.Bat_Temperature ;
-  if ( AccuData.Bat_Capacity != 0 ) {
-       doc [ "Accu" ] [ "Capacity"    ] = AccuData.Bat_Capacity / 1000.0 ; }
-  else doc [ "Accu" ] [ "Capacity"    ] = AccuData.Bat_SOC * 5.12 / 100 ;
+  if ( AccuData.Bat_Lading != 0 ) {
+       doc [ "Accu" ] [ "Lading"    ] = AccuData.Bat_Lading     / 100.0 ; }
+  else doc [ "Accu" ] [ "Lading"    ] = AccuData.Bat_SOC * 5.12 / 100 ;
   
   if      ( AccuData.Mode == 1 ) doc ["Accu"] ["Mode"] = "AI"        ;
   else if ( AccuData.Mode == 2 ) doc ["Accu"] ["Mode"] = "Handmatig" ;
@@ -485,6 +480,50 @@ void handleAPIStatus() {
     doc [ "alarms" ] [ "critical_battery"] = false ;
     doc [ "alarms" ] [ "high_temperature"] = false ;
   #endif
+
+  String Line ;
+  Line = "Wifi Connected, IP address = 192.168.0.25" ;
+  Line += "✓ UDP gestart op poort 30000" ; 
+  Line += "✓ Webserver: http://192.168.0.25" ;
+  Line += "+++++++++++++++++++++++++++++++++++ Geen respons EM.GetStatus" ;
+  Line += "====  Stand By  ====" ;
+  Line += "  Mode             = 0 (1=AI, 2=Manual, 3=UPS)" ;
+  Line += "  P1_Meter         = 1" ;
+  
+  Line = "" ;
+
+  Line += "MosFET_T=" ;
+  Line += String ( AccuData.MosFET_Temperature, 1 ) ;
+  Line += " °C, T1=" ;
+  Line += String ( AccuData.Temperature_1, 1 ) ;
+  Line += " °C, T2=" ;
+  Line += String ( AccuData.Temperature_2, 1 ) ;
+  Line += " °C, T2=" ;
+  Line += String ( AccuData.Temperature_2, 1 ) ;
+  Line += " °C, T3=" ;
+  Line += String ( AccuData.Temperature_3, 1 ) ;
+  Line += " °C, T4=" ;
+  Line += String ( AccuData.Temperature_4, 1 ) ;
+  Line += ",  Versions:  EMS=" ;
+  Line += String ( AccuData.EMS_version ) ;
+  Line += ", BMS=" ;
+  Line += String ( AccuData.BMS_version ) ;
+  Line += ", VMS=" ;
+  Line += String ( AccuData.VMS_version ) ;
+  Line += ",  Cells: min=" ;
+  Line += String ( AccuData.Cell_Min/1000.0, 3 ) ;
+  Line += "V, max=" ;
+  Line += String ( AccuData.Cell_Max/1000.0, 3 ) ;
+  Line += "V, delta=" ;
+  Line += String ( AccuData.Cell_Delta/1000.0, 3 ) ;
+  Line += "V" ;
+
+  #ifdef Debug
+    Serial.println ( Line ) ;
+  #endif
+ 
+  //if ( ! Do_Long_Line ) Line = "" ;
+  doc [ "Other" ] [ "LongLine" ] = Line ;
 
 
   String json ;
